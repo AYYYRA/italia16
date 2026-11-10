@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FAF8F3">
+<title>意大利 16 天 · 交互行程地图</title>
+<!-- 底图优先读本地 tiles/，缺的才去 Esri 取；提前建好连接，省掉第一张远程瓦片的握手时间 -->
+<link rel="preconnect" href="https://server.arcgisonline.com">
+<link rel="dns-prefetch" href="https://server.arcgisonline.com">
+<link rel="stylesheet" href="vendor/leaflet.css">
+<link rel="stylesheet" href="app.css">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="意大利16天">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ 左侧栏 ============ -->
+  <aside id="side">
+    <!-- 刊头：居中标题 + 日期；下方四个城市色块（脚本渲染，点击进入该城市并滚动日程） -->
+    <header class="brand">
+      <div class="brand-txt">
+        <h1>意大利<span class="brand-num">16</span>天</h1>
+        <p class="brand-date">2027 年 1 月 18 日 — 2 月 2 日</p>
+      </div>
+      <div class="city-rail" id="cityRail"></div>
+      <button id="sideClose" class="icon-btn only-mobile" aria-label="收起侧栏">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab is-active" data-tab="days" role="tab">日程</button>
+      <button class="tab" data-tab="layers" role="tab">图层</button>
+      <button class="tab" data-tab="guide" role="tab">攻略</button>
+    </nav>
+
+    <!-- 面板 1：日程 -->
+    <section class="panel is-active" id="panel-days">
+
+      <div class="toolrow">
+        <div class="searchbox">
+          <svg class="search-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
+          <input id="searchInput" type="search" placeholder="搜索景点、餐厅、车站" autocomplete="off">
+        </div>
+        <div class="playbar">
+          <button id="playBtn" class="play-btn" title="以 3.6 秒一天自动走完全程">
+            <span class="play-ico">▶</span><span class="play-txt">按天播放</span>
+          </button>
+          <button id="resetBtn" class="ghost-btn reset-btn" title="重置视图" aria-label="重置">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg>
+          </button>
+        </div>
+        <div id="searchResults" class="search-results" hidden></div>
+      </div>
+
+      <div id="dayList" class="day-list"></div>
+    </section>
+
+    <!-- 面板 2：图层 -->
+    <section class="panel" id="panel-layers">
+      <p class="panel-lead">控制地图上显示什么。城市级图层在放大到街区后才会展开。</p>
+      <div class="layer-actions">
+        <button class="ghost-btn" data-preset="all">全部显示</button>
+        <button class="ghost-btn" data-preset="clean">只看景点</button>
+        <button class="ghost-btn" data-preset="transit">只看交通</button>
+      </div>
+      <div id="layerList" class="layer-list"></div>
+    </section>
+
+    <!-- 面板 3：攻略 -->
+    <section class="panel" id="panel-guide">
+      <div id="guideBody" class="guide-body"></div>
+    </section>
+
+    <footer class="side-foot">
+      <!-- 精力版本：常驻侧栏底部，浏览到哪一天都能直接切（键盘 E）。低精力只走核心景点，预约门票与火车两版一致 -->
+      <div class="energy" id="energySwitch" role="radiogroup" aria-label="精力版本">
+        <button data-energy="high" role="radio" title="完整行程（键盘 E 切换）"><b>高精力</b><span>完整行程</span></button>
+        <button data-energy="low" role="radio" title="只走核心，订票和火车不变（键盘 E 切换）"><b>低精力</b><span>只走核心</span></button>
+      </div>
+      <span id="statLine" hidden>—</span>
+    </footer>
+  </aside>
+
+  <!-- 移动端侧栏遮罩：点击收起 -->
+  <div id="scrim" class="scrim" aria-hidden="true"></div>
+
+  <!-- ============ 地图 ============ -->
+  <main id="mapWrap">
+    <div id="map"></div>
+
+    <div id="topbar">
+      <!-- 总览 + 四城合成一条分段控件；「城市内」按钮保留给脚本，视觉上由城市按钮代替 -->
+      <div class="where">
+        <div class="mode-switch" id="modeSwitch">
+          <button class="mode is-active" data-mode="overview">总览</button>
+          <button class="mode" data-mode="city">城市内</button>
+        </div>
+        <div class="city-chips" id="cityChips"></div>
+      </div>
+      <div class="topbar-right">
+        <button id="dayPill" class="day-pill" hidden></button>
+        <button id="sideOpen" class="icon-btn only-mobile" aria-label="展开侧栏">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div id="timeline" class="timeline" aria-label="16 天时间线"></div>
+
+    <div id="legend" class="legend"></div>
+
+    <div id="detail" class="detail" aria-hidden="true">
+      <button id="detailClose" class="icon-btn detail-close" aria-label="关闭">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+      <div id="detailBody" class="detail-body"></div>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+  </main>
+</div>
+
+<script src="vendor/leaflet.js"></script>
+<script src="data.js"></script>
+<script src="data/coords.js"></script>
+<script src="data/photos.js"></script>
+<script src="offline.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
