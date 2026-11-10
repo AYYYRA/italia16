@@ -2,8 +2,8 @@
    core  = 页面、脚本、样式、数据、图标：安装时一次缓存好，版本号随内容变
    bulk  = 照片 + 本地瓦片（约 50 MB）：页面里的 offline.js 分批下载进来，换版本不必重下
    tiles = 浏览时从 Esri 取到的瓦片：顺手存一份，限量 */
-const CORE = 'core-c8a7602362';
-const BULK = 'bulk-d8bb74d0c8';
+const CORE = 'core-4fc089e5cf';
+const BULK = 'bulk-29fca62b06';
 const TILES = 'tiles-remote-v1';
 const CORE_FILES = ["index.html","app.css","app.js","data.js","data/coords.js","data/photos.js","offline.js","vendor/leaflet.js","vendor/leaflet.css","manifest.webmanifest","offline-assets.json","vendor/images/layers-2x.png","vendor/images/layers.png","vendor/images/marker-icon-2x.png","vendor/images/marker-icon.png","vendor/images/marker-shadow.png","icons/icon-180.png","icons/icon-192.png","icons/icon-512.png"];
 const TILE_MAX = 2500;
