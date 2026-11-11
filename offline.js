@@ -92,9 +92,11 @@
             const res = await fetch(pk.url, { cache: 'no-store' });
             if (!res.ok) throw new Error(res.status);
             const buf = await res.arrayBuffer();
-            for (const [p, off, len, type] of pk.entries) {
-              if (have.has(abs(p))) continue;
-              await cache.put(abs(p), new Response(buf.slice(off, off + len), { headers: { 'Content-Type': type, 'Content-Length': String(len) } }));
+            // 一批 100 个并发写入：Safari 内核里逐个等着写，一个包要十几秒；成批写不到半秒
+            const items = pk.entries.filter(e => !have.has(abs(e[0])));
+            for (let k = 0; k < items.length; k += 100) {
+              await Promise.all(items.slice(k, k + 100).map(([p, off, len, type]) =>
+                cache.put(abs(p), new Response(buf.slice(off, off + len), { headers: { 'Content-Type': type, 'Content-Length': String(len) } }))));
             }
             st.done += pk.size;
             fails = 0;
